@@ -1,0 +1,149 @@
+<HTA:Application contextMenu=no border=thin caption=no minimizebutton=no maximizebutton=no sysmenu=no id=CMMHta />
+<html>
+
+
+	<!--'****** Version History *********
+	2.0 -	9/9/2018	Complete rewrite into HTA
+						Added graphing of machine efficiency and yield rate
+						Added daily status pie chart
+						Added option to change amount of history
+	2.1 -	9/14/2018	Animated 2 failures in a 3 part range
+						Fixed the weekend hours
+	2.2 -	11/17/2018	Buttons now show WJM scan instead of CMM scan
+	2.3 -	12/26/2018	Change Machine Name to Fixture Nomenclature
+	2.4 -	1/2/2019	Modified offset nomenclature to match OP 30 & offset_calculations
+							
+						Need to add access fail check in process
+	3.0 -	3/4/2019	Overhaul to monitor weekly production/shipment levels
+						Changed the daily/shift blade monitoring to separate containers separating them
+	3.1 -	4/1/2019	Created rows for each day
+	'***************************************
+	New computer setup (IE): Access data source across domains - Enable
+		Tools > Internet Options, Security tab, select the applicable zone for the site (Intranet), and select Custom Level.
+		Select Enable for Access data source across domains.
+
+
+	'************************************-->
+<head>
+<script language="VBScript">
+		window.moveTo 0, 0
+</script>
+
+  <script type="text/javascript" src="http://www.google.com/jsapi"></script>
+</head>
+<body scroll=no unselectable='on' class='unselectable' id=HTMLbody>
+</body>
+<footer>
+<script language="JavaScript" type="text/javascript">
+	function CMMFunction(e, SNID) {
+		SNID = document.getElementById(e).SNValue
+		if (document.getElementById(e).style.backgroundColor == 'blue') {
+			animateString += e + ";";
+			SNString = document.getElementById('SNIDs').innerHTML;
+			IDString = document.getElementById('submitText').value;
+			if (SNString.indexOf(SNID) != -1) {
+				SNString = SNString.replace(SNID, '');
+				SNString = SNString.replace('<BR><BR>', '<BR>');
+				if (SNString.substring(0,4) == '<BR>') {SNString = SNString.substring(4);}
+				document.getElementById('SNIDs').innerHTML = SNString;
+				document.getElementById('submitText').value = IDString.replace(e + ';', '');
+				document.getElementById(e).style.backgroundColor = 'red';
+			}
+		} else {
+			animateString = animateString.replace(e + ";", "");
+			if (document.getElementById('SNIDs').innerHTML == '') {
+				document.getElementById('SNIDs').innerHTML = SNID;
+			} else {
+				document.getElementById('SNIDs').innerHTML = document.getElementById('SNIDs').innerHTML + '<br>' + SNID;
+			}
+			document.getElementById('submitText').value = document.getElementById('submitText').value + e + ';';
+			document.getElementById(e).style.backgroundColor = 'blue';
+		}
+		if (document.getElementById('MRBModal').style.visibility != 'visible') {document.getElementById('MRBModal').style.visibility = 'visible';document.getElementById('errorString').innerHTML = '';}
+	}
+	function okCorrection() {
+		document.getElementById('MRBModal').style.visibility = 'hidden';
+		buttonIDArray = document.getElementById('submitText').value.split(';');
+		if (document.getElementById('submitText').value != '' &&  document.getElementById('opNameInput').value != '' && document.getElementById('reasonInput').value != '') {
+			for (index = 0; index < buttonIDArray.length; ++index) {
+				if (buttonIDArray[index] != '') {
+					document.getElementById(buttonIDArray[index]).title = document.getElementById(buttonIDArray[index]).title + '\n\nOperator: ' + document.getElementById('opNameInput').value;
+					document.getElementById(buttonIDArray[index]).title = document.getElementById(buttonIDArray[index]).title + '\nCorrection Made: ' + document.getElementById('reasonInput').value;
+					document.getElementById(buttonIDArray[index]).disabled = true;
+				}
+			}
+			document.getElementById('done').value = "okCorrect";
+		} else {
+				document.getElementById('errorString').innerHTML = 'Missing data';
+				result = cancelCorrection();
+		}
+	}
+	function cancelCorrection() {
+		document.getElementById('MRBModal').style.visibility = 'hidden';
+		buttonIDArray = document.getElementById('submitText').value.split(';');
+		for (index = 0; index < buttonIDArray.length; ++index) {
+			if (buttonIDArray[index] != '') {
+				document.getElementById(buttonIDArray[index]).style.backgroundColor = 'red';
+				animateString += buttonIDArray[index] + ";";
+			}
+		}
+		document.getElementById('submitText').value = '';
+		document.getElementById('SNIDs').innerHTML = '';
+		/*document.getElementById('done').value = 'cancelCorrect';*/
+	}
+	function showChart() {
+		document.getElementById('chartButton').disabled = true;
+		document.getElementById('chartButton').disabled = false;
+		if(document.getElementById('columnchart_values').style.visibility == "hidden") {
+			document.getElementById('columnchart_values').style.visibility = "visible";
+			document.getElementById('chart_div').style.visibility = "hidden";
+			document.getElementById('chartButton').style.background = "limegreen";
+		} else {
+			document.getElementById('columnchart_values').style.visibility = "hidden";
+			document.getElementById('chartButton').style.background = "grey";
+		}
+	}
+		
+    function drawChart() {
+		var arr = [[],[]];
+		var data = new google.visualization.DataTable();
+		data.addColumn('string', 'Feature');
+		data.addColumn('number', "Count");
+		
+		
+		for (a = 0; a <= 17; a++) {
+			arr[0][a] = NewDic(a).ID;
+			arr[1][a] = NewDic(a).TestText;
+			if ( parseInt(NewDic(a).TestText) > 0) {
+				data.addRow([NewDic(a).ID, parseInt(NewDic(a).TestText)]);
+			}
+		}
+		  		  
+      var view = new google.visualization.DataView(data);
+      var options = {
+        title: "Pareto of OOT Features for the last " + CMMHistory + " days",
+        width: HTAWidth,
+        height: footerTop,
+        bar: {groupWidth: "80%"},
+        legend: { position: "none" },
+		hAxis : {slantedText: true,
+				slantedTextAngle: 90,
+				maxTextLines: 16
+				}
+      };
+      var chart = new google.visualization.ColumnChart(document.getElementById("columnchart_values"));
+      chart.draw(view, options);
+	  
+		if(document.getElementById('waitForLoop').value == 'false') {
+			waitForInput();
+		}
+  }
+  
+	</script>
+ 
+<script type="text/javascript">
+    google.load('visualization', '1.0', {packages: ['corechart']});
+</script>
+<script language="VBScript" src="Monitor_All_code.vbs"></script>
+</footer>
+</html>
